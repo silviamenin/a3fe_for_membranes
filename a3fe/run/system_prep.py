@@ -66,6 +66,9 @@ class SystemPreparationConfig(_BaseModel):
         generated for each repeat.
     membrane_protein: bool
         If True, the protein is a membrane protein requiring special NPT settings.
+    ensemble_equilibration_engine: str
+        Choose between "gromacs" or "amber" to select the desired dynamics engine for
+        the ensemble equilibration stage
     """
 
     slurm: bool = _Field(True)
@@ -83,6 +86,7 @@ class SystemPreparationConfig(_BaseModel):
     runtime_npt: int = _Field(400, gt=0, lt=40_000)  # ps
     runtime_npt_unrestrained: int = _Field(1000, gt=0, lt=100_000)  # ps
     ensemble_equilibration_time: int = _Field(5000, gt=0, lt=50_000)  # ps
+    ensemble_equilibration_engine: str = "gromacs"
     append_to_ligand_selection: str = _Field(
         "",
         description="Atom selection to append to the ligand selection during restraint searching.",
@@ -739,7 +743,7 @@ def run_ensemble_equilibration(
 
     # Run - assuming that this will be in the appropriate ensemble equilibration directory
     print(
-        f"Running ensemble equilibration simulation with GROMACS for {cfg.ensemble_equilibration_time} ps"
+        f"Running ensemble equilibration simulation with {cfg.ensemble_equilibration_engine} for {cfg.ensemble_equilibration_time} ps"
     )
     if leg_type == _LegType.BOUND:
         work_dir = output_dir
@@ -753,6 +757,7 @@ def run_ensemble_equilibration(
         protocol,
         work_dir=work_dir,
         extra_options=membrane_equil_config,
+        engine=cfg.ensemble_equilibration_engine
     )
 
     # Save the coordinates only, renaming the velocity property to foo so avoid saving velocities. Saving the
@@ -772,6 +777,7 @@ def run_process(
     protocol: _BSS.Protocol._protocol.Protocol,
     work_dir: _Optional[str] = None,
     extra_options: _Optional[dict] = None,
+    engine = None,
 ) -> _BSS._SireWrappers._system.System:
     """
     Run a process with GROMACS, raising informative
@@ -797,9 +803,13 @@ def run_process(
     """
     if extra_options is None:
         extra_options = {}
-    process = _BSS.Process.Gromacs(
-        system, protocol, work_dir=work_dir, extra_options=extra_options
-    )
+        
+    if engine == "gromacs":
+        process = _BSS.Process.Gromacs(system, protocol, work_dir=work_dir)
+    elif engine == "amber":
+        ### remember to install pmemd.cuda and install it
+        process = _BSS.Process.Amber(system, protocol, work_dir=work_dir, exe="pmemd.cuda")
+        
     process.start()
     process.wait()
     import time
