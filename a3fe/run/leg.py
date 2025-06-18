@@ -669,13 +669,17 @@ class Leg(_SimulationRunner):
 
         # If this is the bound leg, search for restraints
         if self.leg_type == _LegType.BOUND:
+            if sysprep_config.ensemble_equilibration_engine == "gromacs":
+                traj_name = "gromacs.xtc"
+            elif sysprep_config.ensemble_equilibration_engine == "amber":
+                traj_name = "amber.nc"
             # For each run, load the trajectory and extract the restraints
             for i, outdir in enumerate(outdirs):
                 self._logger.info(f"Loading trajectory for run {i + 1}...")
                 top_file = f"{self.input_dir}/{_PreparationStage.PREEQUILIBRATED.get_simulation_input_files(self.leg_type)[0]}"
                 traj = _BSS.Trajectory.Trajectory(
                     topology=top_file,
-                    trajectory=f"{outdir}/gromacs.xtc",
+                    trajectory=f"{outdir}/{traj_name}",
                     system=pre_equilibrated_system,
                 )
                 self._logger.info(f"Selecting restraints for run {i + 1}...")
