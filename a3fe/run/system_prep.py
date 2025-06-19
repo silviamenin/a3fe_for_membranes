@@ -197,32 +197,62 @@ class SystemPreparationConfig(_BaseModel):
     def get_membrane_nvt_config(self) -> dict:
         """Get the temperature coupling configuration for membraneNVT equilibration runs."""
         if self.membrane_protein:
-            return {
-                "tcoupl": "v-rescale",
-                "tc-grps": "Protein non-Protein",
-                "tau-t": "1.0 1.0",
-                "ref-t": "303.15 303.15",
-                "annealing": "no no",
-            }
+            if self.ensemble_equilibration_engine == 'gromacs':
+                return {
+                    "tcoupl": "v-rescale",
+                    "tc-grps": "Protein non-Protein",
+                    "tau-t": "1.0 1.0",
+                    "ref-t": "303.15 303.15",
+                    "annealing": "no no",
+                }
+            elif self.ensemble_equilibration_engine == 'amber':
+                return {
+                    "ntp": "3",
+                    'temp0':303.0,
+                    'gamma_ln':1.0,
+                    'gamma_ten':0.0,
+                    'ninterface':2,
+                    'ntc':2,
+                    'tol':0.0000001,
+                    'ntf':2,
+                    'ntb':2,
+                    'cut':8,
+                    'csurften':3,
+                }
         return {}
 
     def get_membrane_npt_config(self) -> dict:
         """Get the pressure coupling configuration for membrane equilibration runs."""
         if self.membrane_protein:
-            return {
-                "pcoupltype": "semiisotropic",
-                "tau-p": "5.0",
-                "compressibility": "4.5e-5 4.5e-5",
-                "ref-p": "1.0 1.0",
-                "rcoulomb": "1.2",
-                "rvdw": "1.2",
-                "rlist": "1.2",
-                "rvdw-switch": "1.0",
-                "vdw-modifier": "Force-switch",
-                "nstcomm": "100",
-                "comm-mode": "linear",
-                "nstxout-compressed": "5000",
-            }
+            if self.ensemble_equilibration_engine == 'gromacs':
+                return {
+                    "pcoupltype": "semiisotropic",
+                    "tau-p": "5.0",
+                    "compressibility": "4.5e-5 4.5e-5",
+                    "ref-p": "1.0 1.0",
+                    "rcoulomb": "1.2",
+                    "rvdw": "1.2",
+                    "rlist": "1.2",
+                    "rvdw-switch": "1.0",
+                    "vdw-modifier": "Force-switch",
+                    "nstcomm": "100",
+                    "comm-mode": "linear",
+                    "nstxout-compressed": "5000",
+                }
+            elif self.ensemble_equilibration_engine == 'amber':
+                return {
+                    "ntp": "3",
+                    'temp0':303.0,
+                    'gamma_ln':1.0,
+                    'gamma_ten':0.0,
+                    'ninterface':2,
+                    'ntc':2,
+                    'tol':0.0000001,
+                    'ntf':2,
+                    'ntb':2,
+                    'cut':8,
+                    'csurften':3,
+                }
         return {}
 
     def get_membrane_bound_equil_config(self) -> dict:
@@ -805,10 +835,10 @@ def run_process(
         extra_options = {}
         
     if engine == "gromacs":
-        process = _BSS.Process.Gromacs(system, protocol, work_dir=work_dir)
+        process = _BSS.Process.Gromacs(system, protocol, work_dir=work_dir, extra_options=extra_options)
     elif engine == "amber":
         ### remember to install pmemd.cuda and install it
-        process = _BSS.Process.Amber(system, protocol, work_dir=work_dir, exe="pmemd.cuda")
+        process = _BSS.Process.Amber(system, protocol, work_dir=work_dir, exe="/usr/local/amber24/bin/pmemd.cuda", extra_options=extra_options)
         
     process.start()
     process.wait()
